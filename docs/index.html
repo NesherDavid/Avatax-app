@@ -83,6 +83,9 @@
   input[type=range] { flex: 1; padding: 0; border: 0; accent-color: var(--primary); height: 28px; }
   .speed-value { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); min-width: 44px; text-align: end; }
   .title-input { font-weight: 600; }
+  .row input { flex: 1; min-width: 0; }
+  .roll { animation: roll .45s ease; }
+  @keyframes roll { from { transform: rotate(-200deg) scale(.7); } to { transform: rotate(0) scale(1); } }
   .modal { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center;
     background: rgba(0,0,0,.45); padding: 24px; animation: fade .15s ease; }
   .modal-card { width: 100%; max-width: 320px; background: var(--card); border: 1px solid var(--line); border-radius: 16px;
@@ -139,6 +142,11 @@
     <section class="card">
       <input id="title" class="title-input" type="text" maxlength="120" autocomplete="off"
              placeholder="Title / occasion (optional)" aria-label="Title or occasion">
+      <div class="row">
+        <input id="place" type="text" maxlength="200" autocomplete="off"
+               placeholder="Where is he? e.g. a beach at sunset (optional)" aria-label="Background place">
+        <button id="dice" class="btn icon ghost" aria-label="Random place" title="Random place"></button>
+      </div>
       <textarea id="text" spellcheck="true" placeholder="Type or paste your script..."></textarea>
       <p class="hint">Pronunciation: write the name, then how to say it in braces, e.g. <b dir="ltr">Ayelet{Ah-yeh-let}</b>. Captions show the name; the voice says the braces.</p>
 
@@ -168,7 +176,7 @@
   <div id="confirm" class="modal" hidden>
     <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="confirmText">
       <p id="confirmText">R U sure???</p>
-      <p class="hint">Same text, title and speed as the last video.</p>
+      <p class="hint">Same text, title, place and speed as the last video.</p>
       <div class="actions">
         <button id="confirmNo" class="btn icon ghost" aria-label="Cancel" title="Cancel"></button>
         <button id="confirmYes" class="btn primary" aria-label="Generate anyway" title="Generate anyway"></button>
@@ -189,6 +197,7 @@ const ICONS = {
   download: svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>'),
   menu: svg('<line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>'),
   close: svg('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'),
+  dice: svg('<rect width="12" height="12" x="2" y="10" rx="2" ry="2"/><path d="m17.92 14 3.5-3.5a2.24 2.24 0 0 0 0-3l-5-4.92a2.24 2.24 0 0 0-3 0L10 6"/><path d="M6 18h.01"/><path d="M10 14h.01"/><path d="M15 6h.01"/><path d="M18 9h.01"/>'),
   slow: svg('<polygon points="8 6 16 12 8 18 8 6"/>', 'width="18" height="18"'),
   fast: svg('<polygon points="13 19 22 12 13 5 13 19"/><polygon points="2 19 11 12 2 5 2 19"/>', 'width="18" height="18"'),
   settings: svg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'),
@@ -203,7 +212,7 @@ const el = {
   saveSettings: $("saveSettings"), text: $("text"), status: $("status"), thumb: $("thumb"),
   avatarName: $("avatarName"), stage: $("stage"), statusIcon: $("statusIcon"), save: $("save"),
   generate: $("generate"), player: $("player"), video: $("video"), download: $("download"),
-  title: $("title"), rate: $("rate"), rateValue: $("rateValue"),
+  title: $("title"), rate: $("rate"), rateValue: $("rateValue"), place: $("place"), dice: $("dice"),
   confirm: $("confirm"), confirmYes: $("confirmYes"), confirmNo: $("confirmNo"),
 };
 const store = {
@@ -283,6 +292,29 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 el.text.value = store.get("draft", "");
 el.title.value = store.get("titleDraft", "");
 el.title.addEventListener("input", () => store.set("titleDraft", el.title.value));
+// Background place: type anything, or roll the dice. Empty = his usual studio backdrop.
+const PLACES = [
+  "a royal palace hall with crystal chandeliers", "a bright modern apartment living room",
+  "a cozy coffee shop with warm lights", "a modern high-tech office with glass walls",
+  "a football stadium on match day", "a sunny Mediterranean beach", "a rooftop terrace at sunset above the city",
+  "a lively Tel Aviv street with cafes", "a green city park in spring", "a modern gym",
+  "a grand university library", "a music recording studio", "an elegant restaurant at night",
+  "a Tokyo street at night with neon signs", "Times Square in New York at dusk",
+  "a Paris street with the Eiffel Tower", "a ski resort with snowy mountains", "golden desert dunes at sunset",
+  "a modern kitchen with marble countertops", "an outdoor basketball court", "a modern art museum gallery",
+  "a concert stage with spotlights", "a luxury hotel lobby", "the stone alleys of Jerusalem's old city",
+  "a startup open space with beanbags", "a colorful farmers market",
+];
+el.place.value = store.get("placeDraft", "");
+el.place.addEventListener("input", () => store.set("placeDraft", el.place.value));
+el.dice.addEventListener("click", () => {
+  let next;
+  do { next = PLACES[Math.floor(Math.random() * PLACES.length)]; } while (next === el.place.value && PLACES.length > 1);
+  el.place.value = next;
+  store.set("placeDraft", next);
+  const icon = el.dice.querySelector("svg");
+  if (icon) { icon.classList.remove("roll"); void icon.getBBox(); icon.classList.add("roll"); }
+});
 const rateLabel = (v) => `${(1 + v / 100).toFixed(2)}x`;
 el.rate.value = store.get("rate", 0);
 el.rateValue.textContent = rateLabel(+el.rate.value);
@@ -315,7 +347,7 @@ el.saveSettings.addEventListener("click", async () => {
 });
 
 // ------------------------------------------------------------------ generate
-const signature = () => JSON.stringify([el.text.value.trim(), el.title.value.trim(), rateString()]);
+const signature = () => JSON.stringify([el.text.value.trim(), el.title.value.trim(), el.place.value.trim(), rateString()]);
 
 function askSure() {
   return new Promise((resolve) => {
@@ -347,7 +379,8 @@ el.generate.addEventListener("click", async () => {
     await gh(`/actions/workflows/${WORKFLOW}/dispatches`, {
       method: "POST",
       body: { ref: store.get("branch", "main"),
-              inputs: { script_text: text, title: el.title.value.trim(), voice_rate: rateString(), request_id: requestId } },
+              inputs: { script_text: text, title: el.title.value.trim(), place: el.place.value.trim(),
+                        voice_rate: rateString(), request_id: requestId } },
     });
     store.set("lastSig", sig);
     store.set("job", { requestId, runId: null, started: Date.now() });
@@ -511,6 +544,7 @@ $("slowIcon").innerHTML = ICONS.slow;
 $("fastIcon").innerHTML = ICONS.fast;
 el.confirmNo.innerHTML = ICONS.close;
 el.confirmYes.innerHTML = ICONS.play;
+el.dice.innerHTML = ICONS.dice;
 el.saveSettings.innerHTML = ICONS.save;
 el.save.innerHTML = ICONS.save;
 el.generate.innerHTML = ICONS.play;
