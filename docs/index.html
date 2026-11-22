@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#18181b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Avatax">
+<meta name="referrer" content="no-referrer">
+<title>Avatax</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+  :root {
+    --bg: #f6f6f7; --card: #ffffff; --text: #18181b; --muted: #71717a; --line: #e4e4e7;
+    --primary: #18181b; --primary-text: #ffffff; --ghost-hover: #f4f4f5; --focus: #a1a1aa;
+    --ok: #22c55e; --bad: #ef4444;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f0f11; --card: #18181b; --text: #f4f4f5; --muted: #a1a1aa; --line: #27272a;
+      --primary: #f4f4f5; --primary-text: #18181b; --ghost-hover: #27272a; --focus: #52525b;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body {
+    font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    min-height: 100dvh; padding-bottom: env(safe-area-inset-bottom);
+  }
+  .bar {
+    position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between;
+    padding: calc(12px + env(safe-area-inset-top)) 16px 12px; background: var(--card); border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .logo { width: 22px; height: 22px; }
+  .title { font-weight: 650; font-size: 17px; letter-spacing: .2px; }
+  .right { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #a1a1aa; margin: 0 6px; transition: background .3s, box-shadow .3s; }
+  .dot.on { background: var(--ok); box-shadow: 0 0 0 3px rgba(34,197,94,.18); }
+  .dot.off { background: var(--bad); box-shadow: 0 0 0 3px rgba(239,68,68,.16); }
+
+  main { max-width: 560px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+  textarea, input {
+    width: 100%; border: 1px solid var(--line); border-radius: 10px; background: transparent; color: var(--text);
+    font: inherit; outline: none; padding: 12px; unicode-bidi: plaintext;
+  }
+  textarea { min-height: 38dvh; resize: vertical; }
+  textarea:focus, input:focus { border-color: var(--focus); }
+  label { font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
+  .hint { font-size: 13px; color: var(--muted); margin: 0; }
+  .hint a { color: inherit; }
+
+  .status { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; animation: fade .25s ease; }
+  .status[hidden], [hidden] { display: none !important; }
+  .thumb { width: 36px; height: 36px; border-radius: 8px; object-fit: cover; flex: none; }
+  .status-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+  .avatar-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .avatar-name:empty { display: none; }
+  .stage { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+  .stage a { color: inherit; }
+  .status-icon { display: inline-flex; flex: none; }
+
+  .actions { display: flex; gap: 10px; }
+  .btn {
+    height: 48px; min-width: 48px; border-radius: 12px; border: 1px solid var(--line); cursor: pointer; color: var(--text);
+    display: inline-flex; align-items: center; justify-content: center; background: transparent;
+    transition: background .15s, transform .1s, opacity .2s; touch-action: manipulation;
+  }
+  .btn:active { transform: scale(.96); }
+  .btn:disabled { cursor: default; opacity: .85; }
+  .btn.icon { width: 48px; }
+  .btn.small { height: 40px; min-width: 40px; width: 40px; border: 0; }
+  .btn.ghost:hover { background: var(--ghost-hover); }
+  .btn.primary { flex: 1; background: var(--primary); color: var(--primary-text); border-color: var(--primary); }
+  .btn svg { animation: pop .22s ease; }
+
+  video { width: 100%; border-radius: 10px; background: #000; display: block; max-height: 70dvh; }
+
+  .spin { animation: spin .8s linear infinite !important; transform-origin: 50% 50%; }
+  .ok { animation: pop .3s ease; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+</style>
+</head>
+<body>
+  <header class="bar">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20 12 4l8 16"/><path d="M8 14h8"/></svg>
+      <span class="title">Avatax</span>
+    </div>
+    <div class="right">
+      <span id="dot" class="dot" title="Not connected"></span>
+      <button id="settingsBtn" class="btn small ghost" aria-label="Settings" title="Settings"></button>
+    </div>
+  </header>
+
+  <main>
+    <section id="settings" class="card" hidden>
+      <label>GitHub token
+        <input id="token" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="github_pat_...">
+      </label>
+      <label>Repository
+        <input id="repo" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="owner/Avatax">
+      </label>
+      <p class="hint">
+        Create a <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">fine-grained token</a>
+        with access to only your Avatax repository and these permissions: <b>Actions: Read and write</b>, <b>Contents: Read-only</b>.
+        The token is stored only in this browser.
+      </p>
+      <div class="actions">
+        <button id="saveSettings" class="btn primary" aria-label="Save settings" title="Save settings"></button>
+      </div>
+    </section>
+
+    <section class="card">
+      <textarea id="text" spellcheck="true" placeholder="Type or paste your script..."></textarea>
+
+      <div id="status" class="status" hidden>
+        <img id="thumb" class="thumb" alt="" hidden>
+        <div class="status-text">
+          <span id="avatarName" class="avatar-name"></span>
+          <span id="stage" class="stage"></span>
+        </div>
+        <span id="statusIcon" class="status-icon"></span>
+      </div>
+
+      <div class="actions">
+        <button id="save" class="btn icon ghost" aria-label="Save" title="Save"></button>
+        <button id="generate" class="btn primary" aria-label="Generate video" title="Generate video"></button>
+      </div>
+    </section>
+
+    <section id="player" class="card" hidden>
+      <video id="video" controls playsinline preload="metadata"></video>
+      <div class="actions">
+        <button id="download" class="btn primary" aria-label="Download video" title="Download video"></button>
+      </div>
+    </section>
+  </main>
+
+<script>
+// ------------------------------------------------------------------ icons (Lucide style)
+const svg = (body, extra = "", stroke = "currentColor") =>
+  `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="${stroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${body}</svg>`;
+const ICONS = {
+  save: svg('<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>'),
+  play: svg('<polygon points="7 4 19 12 7 20 7 4"/>'),
+  check: svg('<polyline points="20 6 9 17 4 12"/>', 'class="ok"', "#22c55e"),
+  spinner: svg('<path d="M21 12a9 9 0 1 1-6.219-8.56"/>', 'class="spin"'),
+  error: svg('<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>', "", "#ef4444"),
+  download: svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>'),
+  settings: svg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'),
+};
+
+// ------------------------------------------------------------------ state
+const WORKFLOW = "generate_video.yml";
+const VIDEO_BRANCH = "avatax-videos";
+const $ = (id) => document.getElementById(id);
+const el = {
+  dot: $("dot"), settingsBtn: $("settingsBtn"), settings: $("settings"), token: $("token"), repo: $("repo"),
+  saveSettings: $("saveSettings"), text: $("text"), status: $("status"), thumb: $("thumb"),
+  avatarName: $("avatarName"), stage: $("stage"), statusIcon: $("statusIcon"), save: $("save"),
+  generate: $("generate"), player: $("player"), video: $("video"), download: $("download"),
+};
+const store = {
+  get(k, d = null) { try { const v = localStorage.getItem("avatax." + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("avatax." + k, JSON.stringify(v)); } catch {} },
+  del(k) { try { localStorage.removeItem("avatax." + k); } catch {} },
+};
+let videoBlob = null, videoUrl = null, thumbUrl = null, polling = false;
+
+function defaultRepo() {
+  const m = location.hostname.match(/^([^.]+)\.github\.io$/i);
+  return m ? `${m[1]}/Avatax` : "";
+}
+const cfg = () => ({ token: store.get("token", ""), repo: store.get("repo", defaultRepo()) });
+
+// ------------------------------------------------------------------ GitHub API
+async function gh(path, { method = "GET", body, accept = "application/vnd.github+json", raw = false } = {}) {
+  const { token, repo } = cfg();
+  const url = path.startsWith("http") ? path : `https://api.github.com/repos/${repo}${path}`;
+  const res = await fetch(url, {
+    method, cache: "no-store",
+    headers: { Authorization: `Bearer ${token}`, Accept: accept, "X-GitHub-Api-Version": "2022-11-28",
+               ...(body ? { "Content-Type": "application/json" } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    let msg = res.statusText;
+    try { msg = (await res.json()).message || msg; } catch {}
+    const err = new Error(`${res.status}: ${msg}`); err.status = res.status; throw err;
+  }
+  if (raw) return res;
+  return res.status === 204 ? null : res.json();
+}
+
+async function checkConnection() {
+  const { token, repo } = cfg();
+  if (!token || !repo) { setDot(false, "Add your GitHub token in settings"); return false; }
+  try {
+    const r = await gh("");
+    store.set("branch", r.default_branch || "main");
+    setDot(true, `Connected to ${repo}`);
+    return true;
+  } catch (e) {
+    setDot(false, `GitHub: ${e.message}`);
+    return false;
+  }
+}
+function setDot(on, title) { el.dot.className = "dot " + (on ? "on" : "off"); el.dot.title = title; }
+
+// ------------------------------------------------------------------ UI helpers
+function showStatus({ avatar, stage, icon, link }) {
+  el.status.hidden = false;
+  if (avatar !== undefined) {
+    el.avatarName.textContent = avatar || "";
+    if (!avatar) el.thumb.hidden = true;
+  }
+  if (stage !== undefined) {
+    el.stage.textContent = stage;
+    if (link) {
+      const a = document.createElement("a");
+      a.href = link; a.target = "_blank"; a.rel = "noopener"; a.textContent = " View run";
+      el.stage.append(a);
+    }
+  }
+  if (icon && el.statusIcon.dataset.icon !== icon) {
+    el.statusIcon.innerHTML = ICONS[icon];
+    el.statusIcon.dataset.icon = icon;
+  }
+}
+function setBusy(busy) {
+  el.generate.disabled = busy;
+  el.generate.innerHTML = busy ? ICONS.spinner : ICONS.play;
+}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// ------------------------------------------------------------------ text persistence
+el.text.value = store.get("draft", "");
+let draftTimer;
+el.text.addEventListener("input", () => { clearTimeout(draftTimer); draftTimer = setTimeout(() => store.set("draft", el.text.value), 250); });
+let saveFlash;
+el.save.addEventListener("click", () => {
+  store.set("draft", el.text.value);
+  el.save.innerHTML = ICONS.check;
+  clearTimeout(saveFlash);
+  saveFlash = setTimeout(() => (el.save.innerHTML = ICONS.save), 1200);
+});
+
+// ------------------------------------------------------------------ settings
+function openSettings(open) {
+  el.settings.hidden = !open;
+  if (open) { el.token.value = cfg().token; el.repo.value = cfg().repo; (el.token.value ? el.repo : el.token).focus(); }
+}
+el.settingsBtn.addEventListener("click", () => openSettings(el.settings.hidden));
+el.saveSettings.addEventListener("click", async () => {
+  store.set("token", el.token.value.trim());
+  store.set("repo", el.repo.value.trim().replace(/^https?:\/\/github\.com\//, "").replace(/\/$/, ""));
+  el.saveSettings.innerHTML = ICONS.spinner;
+  const ok = await checkConnection();
+  el.saveSettings.innerHTML = ok ? ICONS.check : ICONS.error;
+  setTimeout(() => { el.saveSettings.innerHTML = ICONS.save; if (ok) openSettings(false); }, 900);
+});
+
+// ------------------------------------------------------------------ generate
+el.generate.addEventListener("click", async () => {
+  const text = el.text.value.trim();
+  if (!text) { el.text.focus(); return; }
+  store.set("draft", el.text.value);
+  if (!cfg().token || !cfg().repo) { openSettings(true); return; }
+  setBusy(true);
+  showStatus({ avatar: "", stage: "Starting cloud run", icon: "spinner" });
+  const requestId = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random()).replace(/-/g, "").slice(0, 16);
+  try {
+    await gh(`/actions/workflows/${WORKFLOW}/dispatches`, {
+      method: "POST",
+      body: { ref: store.get("branch", "main"), inputs: { script_text: text, request_id: requestId } },
+    });
+    store.set("job", { requestId, runId: null, started: Date.now() });
+    track();
+  } catch (e) {
+    showStatus({ stage: e.status === 404 ? "Workflow or repository not found - check settings and token permissions" : e.message, icon: "error" });
+    setBusy(false);
+  }
+});
+
+async function findRun(requestId) {
+  const data = await gh(`/actions/workflows/${WORKFLOW}/runs?event=workflow_dispatch&per_page=20`);
+  return (data.workflow_runs || []).find((r) => (r.display_title || r.name || "").includes(requestId));
+}
+
+async function currentStep(runId) {
+  try {
+    const { jobs } = await gh(`/actions/runs/${runId}/jobs`);
+    const step = (jobs?.[0]?.steps || []).find((s) => s.status === "in_progress");
+    return step ? step.name : null;
+  } catch { return null; }
+}
+
+async function track() {
+  if (polling) return;
+  polling = true;
+  setBusy(true);
+  try {
+    let job = store.get("job");
+    while (job) {
+      if (!job.runId) {
+        const run = await findRun(job.requestId).catch(() => null);
+        if (run) { job.runId = run.id; job.url = run.html_url; store.set("job", job); }
+        else if (Date.now() - job.started > 3 * 60 * 1000) throw new Error("The cloud run did not start. Check the Actions tab of your repository.");
+        else { showStatus({ stage: "Waiting for GitHub to start the run", icon: "spinner" }); await sleep(3000); continue; }
+      }
+      const run = await gh(`/actions/runs/${job.runId}`);
+      if (run.status !== "completed") {
+        const step = run.status === "in_progress" ? await currentStep(job.runId) : null;
+        const mins = Math.floor((Date.now() - job.started) / 60000);
+        showStatus({ stage: `${step || (run.status === "queued" ? "Queued" : "Running")} · ${mins} min`, icon: "spinner" });
+        await sleep(5000);
+        continue;
+      }
+      if (run.conclusion !== "success") {
+        store.del("job");
+        showStatus({ stage: `Cloud run ${run.conclusion}.`, icon: "error", link: run.html_url });
+        return;
+      }
+      showStatus({ stage: "Downloading video", icon: "spinner" });
+      await loadVideo(job.runId, run.html_url);
+      store.set("last", { runId: job.runId, url: run.html_url });
+      store.del("job");
+      return;
+    }
+  } catch (e) {
+    const offline = e instanceof TypeError;  // network hiccup: keep the job and resume when back online
+    showStatus({ stage: offline ? "Connection lost - will resume automatically" : e.message, icon: "error", link: store.get("job")?.url });
+    if (!offline) store.del("job");
+  } finally {
+    polling = false;
+    setBusy(false);
+  }
+}
+
+// ------------------------------------------------------------------ fetch the finished video
+async function fetchRaw(path, ref) {
+  const res = await gh(`/contents/${path}?ref=${encodeURIComponent(ref)}`, { accept: "application/vnd.github.raw", raw: true });
+  return res.blob();
+}
+
+async function videoFromBranch(runId) {
+  const blob = await fetchRaw(`videos/${runId}.mp4`, VIDEO_BRANCH);
+  let meta = {};
+  try { meta = JSON.parse(await (await fetchRaw(`videos/${runId}.json`, VIDEO_BRANCH)).text()); } catch {}
+  return { blob, meta };
+}
+
+async function videoFromArtifact(runId) {
+  const { artifacts } = await gh(`/actions/runs/${runId}/artifacts`);
+  const art = (artifacts || []).find((a) => a.name === "avatax-video" && !a.expired);
+  if (!art) throw new Error("Artifact not found");
+  const zip = await (await gh(`/actions/artifacts/${art.id}/zip`, { raw: true })).arrayBuffer();
+  const files = await unzip(zip);
+  const meta = files["avatax_result.json"] ? JSON.parse(new TextDecoder().decode(files["avatax_result.json"])) : {};
+  return { blob: new Blob([files["avatax_output.mp4"]], { type: "video/mp4" }), meta };
+}
+
+// Minimal ZIP reader (stored + deflate) using the central directory.
+async function unzip(buf) {
+  const v = new DataView(buf), out = {};
+  let eocd = -1;
+  for (let i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 65557); i--) {
+    if (v.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error("Bad zip");
+  let p = v.getUint32(eocd + 16, true);
+  const count = v.getUint16(eocd + 10, true);
+  for (let n = 0; n < count; n++) {
+    const method = v.getUint16(p + 10, true), size = v.getUint32(p + 20, true);
+    const nameLen = v.getUint16(p + 28, true), extraLen = v.getUint16(p + 30, true), commentLen = v.getUint16(p + 32, true);
+    const local = v.getUint32(p + 42, true);
+    const name = new TextDecoder().decode(new Uint8Array(buf, p + 46, nameLen));
+    const start = local + 30 + v.getUint16(local + 26, true) + v.getUint16(local + 28, true);
+    const data = new Uint8Array(buf, start, size);
+    out[name] = method === 0 ? data : new Uint8Array(await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer());
+    p += 46 + nameLen + extraLen + commentLen;
+  }
+  return out;
+}
+
+async function loadVideo(runId, runUrl) {
+  let result;
+  try { result = await videoFromBranch(runId); }
+  catch (e1) {
+    try { result = await videoFromArtifact(runId); }
+    catch (e2) { throw Object.assign(new Error(`Could not download the video (${e1.message})`), { status: e1.status }); }
+  }
+  videoBlob = result.blob.type === "video/mp4" ? result.blob : new Blob([result.blob], { type: "video/mp4" });
+  if (videoUrl) URL.revokeObjectURL(videoUrl);
+  videoUrl = URL.createObjectURL(videoBlob);
+  el.video.src = videoUrl;
+  el.player.hidden = false;
+  el.download.dataset.name = `avatax_${runId}.mp4`;
+  const meta = result.meta || {};
+  showStatus({ avatar: meta.avatar || "", stage: meta.warning || "Video ready", icon: "check", link: meta.warning ? runUrl : undefined });
+  if (meta.avatar) loadThumb(meta.avatar);
+  el.player.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function loadThumb(name) {
+  try {
+    const blob = await fetchRaw(`avatars/${encodeURIComponent(name)}`, store.get("branch", "main"));
+    if (thumbUrl) URL.revokeObjectURL(thumbUrl);
+    thumbUrl = URL.createObjectURL(blob);
+    el.thumb.src = thumbUrl; el.thumb.hidden = false;
+  } catch {}
+}
+
+// ------------------------------------------------------------------ download / save to gallery
+el.download.addEventListener("click", async () => {
+  if (!videoBlob) return;
+  const name = el.download.dataset.name || "avatax.mp4";
+  const file = new File([videoBlob], name, { type: "video/mp4" });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file] }); flashDownload(); return; }   // iOS / Android: "Save Video" to gallery
+    catch (e) { if (e.name === "AbortError") return; }
+  }
+  const a = document.createElement("a");
+  a.href = videoUrl; a.download = name; document.body.append(a); a.click(); a.remove();
+  flashDownload();
+});
+function flashDownload() {
+  el.download.innerHTML = ICONS.check;
+  setTimeout(() => (el.download.innerHTML = ICONS.download), 1400);
+}
+
+// ------------------------------------------------------------------ init
+el.settingsBtn.innerHTML = ICONS.settings;
+el.saveSettings.innerHTML = ICONS.save;
+el.save.innerHTML = ICONS.save;
+el.generate.innerHTML = ICONS.play;
+el.download.innerHTML = ICONS.download;
+(async () => {
+  const ok = await checkConnection();
+  if (!cfg().token) { openSettings(true); return; }
+  if (!ok) return;
+  if (store.get("job")) { track(); return; }
+  const last = store.get("last");
+  if (last) {
+    showStatus({ avatar: "", stage: "Loading last video", icon: "spinner" });
+    try { await loadVideo(last.runId, last.url); }
+    catch { el.status.hidden = true; store.del("last"); }
+  }
+})();
+document.addEventListener("visibilitychange", () => { if (!document.hidden && store.get("job")) track(); });
+window.addEventListener("online", () => { if (store.get("job")) track(); });
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>
